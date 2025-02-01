@@ -1,0 +1,5 @@
+--==[ ALSA Devices ]==--
+Configure ALSA devices and parameters in shared/config.h
+
+--==[ Cross-compilation example ]==--
+CROSS_COMPILE=~/src/starkis/buildroot/output/host/bin/arm-buildroot-linux-gnueabihf- PKGCONFIG=~/src/starkis/buildroot/output/host/bin/pkg-config make
