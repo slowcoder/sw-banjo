@@ -49,6 +49,45 @@ static void play_stream(char *pzURI) {
 	tcp_send(pPkt,pPkt->hdr.len + sizeof(pPkt->hdr));	
 }
 
+#define FILE_BUFFER_SZ 2048
+
+static void play_file(char *pzFilename) {
+	FILE *in;
+	long fsize,c;
+	npkt_t *pPkt;
+
+	in = fopen(pzFilename,"rb");
+	if( in == NULL ) return;
+	fseek(in,0,SEEK_END);
+	fsize = ftell(in);
+	fseek(in,0,SEEK_SET);
+
+	pPkt = (npkt_t*)calloc(1,sizeof(npkt_t));
+
+	pPkt->hdr.type = eNPktType_PlayFile;
+	pPkt->hdr.len  = sizeof(pPkt->playfile);
+	pPkt->playfile.filelen = fsize;
+
+	// Send header
+	tcp_send(pPkt,pPkt->hdr.len + sizeof(pPkt->hdr));
+
+	// Send file contents
+	uint8_t buff[FILE_BUFFER_SZ];
+	c = 0;
+	while(c<fsize) {
+		if( (c+FILE_BUFFER_SZ) < fsize ) {
+			fread(buff,1,FILE_BUFFER_SZ,in);
+			tcp_send(buff,FILE_BUFFER_SZ);
+			c += FILE_BUFFER_SZ;
+		} else {
+			fread(buff,1,fsize-c,in);
+			tcp_send(buff,fsize-c);
+			c = fsize;
+		}
+	}
+	fclose(in);
+}
+
 int main(int argc,char **argv) {
 
 	if( argc < 2 ) {
@@ -59,8 +98,8 @@ int main(int argc,char **argv) {
 		return 0;
 	}
 
-//	tcp_connect("localhost",4800);
-	tcp_connect("10.0.0.151",4800);
+	tcp_connect("localhost",4800);
+//	tcp_connect("10.0.0.151",4800);
 
 	handshake();
 
@@ -71,6 +110,12 @@ int main(int argc,char **argv) {
 			printf("Playing default stream\n");
 			//play_stream("http://http-live.sr.se/p3-mp3-128");
 			play_stream("http://http-live.sr.se/p4malmo-aac-192");
+		}
+	} else if( strcmp(argv[1],"playfile") == 0 ) {
+		if( argc > 2 ) {
+			play_file(argv[2]);
+		} else {
+			printf("Missing filename\n");
 		}
 	} else if( strcmp(argv[1],"stop") == 0 ) {
 		stop();

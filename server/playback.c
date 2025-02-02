@@ -5,6 +5,7 @@
 #include <unistd.h>
 
 #include "ipc.h"
+#include "log.h"
 #include "mediainput_avcodec.h"
 #include "mediaresampler.h"
 #include "mediaoutput_alsa.h"
@@ -86,10 +87,15 @@ static void *playback_thread(void *pArg) {
 			mediaframe_t *pResampledFrame = NULL;
 
 			pFrame = mediainput_avcodec_getnextframe(pCtx->pMediaInput);
-			pResampledFrame = mediaresampler_process(pCtx->pMediaResampler,pFrame);
-			mediaframe_free(pFrame);
-			mediaoutput_alsa_buffer(pCtx->pMediaOutput,pResampledFrame);
-			mediaframe_free(pResampledFrame);
+			if( pFrame == NULL ) {
+				LOG("Stream ended");
+				bIsPlaying = 0;
+			} else { // Normal playback
+				pResampledFrame = mediaresampler_process(pCtx->pMediaResampler,pFrame);
+				mediaframe_free(pFrame);
+				mediaoutput_alsa_buffer(pCtx->pMediaOutput,pResampledFrame);
+				mediaframe_free(pResampledFrame);
+			}
 		} else {
 			usleep(100*1000);
 		}

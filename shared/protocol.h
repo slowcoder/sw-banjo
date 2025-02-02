@@ -9,6 +9,7 @@ typedef enum {
 	eNPktType_Volume_Set,
 	eNPktType_PlayStream,
 	eNPktType_Stop,
+	eNPktType_PlayFile,
 } eNPktType;
 
 #pragma pack(push,1)
@@ -29,6 +30,9 @@ typedef struct {
 		struct {
 			char pzURI[0];
 		} playstream;
+		struct {
+			uint32_t filelen;
+		} playfile;
 	};
 } npkt_t;
 #pragma pack(pop)

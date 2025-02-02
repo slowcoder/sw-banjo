@@ -48,6 +48,45 @@ static int recv_pkt(npkt_t **ppPkt) {
 	return r;
 }
 
+#define FILE_BUFFER_SZ 2048
+
+static void handle_playfile(struct playback *pPBCtx,npkt_t *pPkt) {
+	char fname[255];
+	uint32_t c;
+	FILE *out;
+
+	if( tmpnam_r(fname) == NULL ) return;
+	LOGI("Temp filename: \"%s\"",fname);
+
+	out = fopen(fname,"wb");
+	if( out == NULL ) {
+		LOGE("Failed to open temp-file \"%s\"",fname);
+		return;
+	}
+
+	uint8_t buff[FILE_BUFFER_SZ];
+	int r;
+	c = 0;
+	while(c<pPkt->playfile.filelen) {
+		if( (c+FILE_BUFFER_SZ) < pPkt->playfile.filelen ) {
+			r = tcp_recv(buff,FILE_BUFFER_SZ,RECV_TIMEOUT);
+			fwrite(buff,1,r,out);
+			c += r;
+		} else {
+			r = tcp_recv(buff,pPkt->playfile.filelen - c,RECV_TIMEOUT);
+			fwrite(buff,1,r,out);
+			c += r;
+		}
+	}
+	fclose(out);
+
+	char uri[285];
+	snprintf(uri,284,"file://%s",fname);
+
+	playback_play_stream(pPBCtx,uri);
+
+}
+
 static void handle_client(int s,struct playback *pPBCtx) {
 	npkt_t pkt;
 	int r,is_connected = 1;
@@ -105,6 +144,9 @@ static void handle_client(int s,struct playback *pPBCtx) {
 		case eNPktType_Stop:
 			printf("Should stop playing\n");
 			playback_stop(pPBCtx);
+			break;
+		case eNPktType_PlayFile:
+			handle_playfile(pPBCtx,pPkt);
 			break;
 		default:
 			printf("Unhandled pkt of type %i\n",pPkt->hdr.type);
