@@ -162,11 +162,14 @@ int 				mediaoutput_alsa_buffer(struct mediaoutput *pCtx,mediaframe_t *pFrame) {
 
 
 	if( (err = snd_pcm_writei(pCtx->pcm, pFrame->data[0], pFrame->nb_samples)) == -EPIPE ) {
-	    LOGW("XRUN.");
 		snd_pcm_prepare(pCtx->pcm);
 	}
 	if( err < 0 ) {
-		LOGE("Can't write to PCM device. %s\n",snd_strerror(err));
+		if( err == -EPIPE ) {
+			LOGW("ALSA underrun");
+		} else {
+			LOGE("Can't write to PCM device. %s\n",snd_strerror(err));
+		}
 	}
 
 	return 0;
