@@ -180,6 +180,11 @@ mediaframe_t      *mediainput_avcodec_getnextframe(struct mediainput *pCtx) {
 			LOGE("Reached end of stream?");
 			return NULL;
 		}
+
+		if( pCtx->pkt->stream_index != pCtx->audio_stream_idx ) {
+			av_packet_unref(pCtx->pkt);
+		}
+
 	} while( pCtx->pkt->stream_index != pCtx->audio_stream_idx );
 
 	// Submit the packet to the decoder;
@@ -189,6 +194,10 @@ mediaframe_t      *mediainput_avcodec_getnextframe(struct mediainput *pCtx) {
 		LOGE("Error sumbitting a packet for decoding");
 		return NULL;
 	}
+
+//	av_packet_free(&pCtx->pkt);
+	av_packet_unref(pCtx->pkt);
+
 
 	// Get a frame from the decoder (if there is one)
 	// NOTE: We make the assumption that an encoded frame

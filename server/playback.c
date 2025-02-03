@@ -60,8 +60,9 @@ static void *playback_thread(void *pArg) {
 	playback_t *pCtx = (playback_t*)pArg;
 	IPCEvent_t ev;
 	int bIsPlaying = 0;
+	int bIsRunning = 1;
 
-	while(1) {
+	while(bIsRunning) {
 		while( IPCEvent_Poll(&ev) == 0 ) {
 
 			switch(ev.type) {
@@ -73,6 +74,12 @@ static void *playback_thread(void *pArg) {
 			case eEventType_Playback_Stop:
 				stopstream(pCtx);
 				bIsPlaying = 0;
+				break;
+			case eEventType_Quit:
+				stopstream(pCtx);
+				sleep(1);
+				bIsPlaying = 0;
+				bIsRunning = 0;
 				break;
 			case eEventType_Volume_Set:
 				mediaoutput_alsa_setplaybackvolume(ev.volume_set.level);
@@ -155,6 +162,15 @@ int              playback_stop(struct playback *pCtx) {
 	IPCEvent_t ev;
 
 	ev.type = eEventType_Playback_Stop;
+	IPCEvent_Post(&ev);
+
+	return 0;
+}
+
+int              playback_quit(struct playback *pCtx) {
+	IPCEvent_t ev;
+
+	ev.type = eEventType_Quit;
 	IPCEvent_Post(&ev);
 
 	return 0;

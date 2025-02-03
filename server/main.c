@@ -145,6 +145,10 @@ static void handle_client(int s,struct playback *pPBCtx) {
 			printf("Should stop playing\n");
 			playback_stop(pPBCtx);
 			break;
+		case eNPktType_Quit:
+			printf("Should quit\n");
+			playback_quit(pPBCtx);
+			break;
 		case eNPktType_PlayFile:
 			handle_playfile(pPBCtx,pPkt);
 			break;

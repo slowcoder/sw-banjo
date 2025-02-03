@@ -37,6 +37,15 @@ static void stop(void) {
 	tcp_send(&pkt,sizeof(pkt.hdr));
 }
 
+static void quit(void) {
+	npkt_t pkt;
+
+	pkt.hdr.type = eNPktType_Quit;
+	pkt.hdr.len  = 0;
+
+	tcp_send(&pkt,sizeof(pkt.hdr));
+}
+
 static void play_stream(char *pzURI) {
 	npkt_t *pPkt;
 
@@ -119,6 +128,8 @@ int main(int argc,char **argv) {
 		}
 	} else if( strcmp(argv[1],"stop") == 0 ) {
 		stop();
+	} else if( strcmp(argv[1],"quit") == 0 ) {
+		quit();
 	} else if( strcmp(argv[1],"volume") == 0 ) {
 		volume_set(atoi(argv[2]));
 	}

@@ -7,6 +7,7 @@ typedef enum {
   eEventType_Volume_Set    = 0x10,
   eEventType_Playstream    = 0x20,
   eEventType_Playback_Stop = 0x30,
+  eEventType_Quit          = 0x40,
 } eEventType;
 
 typedef struct {
