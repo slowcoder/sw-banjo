@@ -104,6 +104,26 @@ static int media_open_codec_context(int *stream_idx, AVCodecContext **dec_ctx, A
 	return 0;
 }
 
+static void upmix(mediaframe_t *pFrame) {
+	int i;
+
+
+	if( pFrame->fmt == eMediasamplefmt_S16 ) {
+		int16_t *pSrc,*pDst;
+
+		pSrc = pFrame->data[0];
+		pDst = (int16_t*)malloc(pFrame->nb_samples * 2 * sizeof(int16_t));
+		for(i=0;i<pFrame->nb_samples;i++) {
+			pDst[i*2+0] = pSrc[i];
+			pDst[i*2+1] = pSrc[i];
+		}
+		free(pFrame->data[0]);
+		pFrame->data[0] = pDst;
+	} else {
+		ASSERT(0,"Implement me. fmt=%i",pFrame->fmt);
+	}
+
+}
 
 struct mediainput *mediainput_avcodec_openstream(const char *pzURI) {
 	mediainput_t *pCtx;
@@ -245,6 +265,10 @@ mediaframe_t      *mediainput_avcodec_getnextframe(struct mediainput *pCtx) {
 	}
 
 	av_frame_unref(pCtx->frame);
+
+	if( pRetFrame->channels == 1 ) {
+		upmix(pRetFrame);
+	}
 
 	return pRetFrame;
 }
