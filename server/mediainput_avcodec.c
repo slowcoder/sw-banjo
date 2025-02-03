@@ -121,13 +121,13 @@ struct mediainput *mediainput_avcodec_openstream(const char *pzURI) {
 		NULL,
 		NULL);
 	if( r != 0 ) {
-		printf("%s: av_open_input() = %i\n",__func__,r);
+		LOGE("av_open_input() = %s (%i)",av_err2str(r),r);
 		goto err_exit;
 	}
 
 	/* retrieve stream information */
 	if( avformat_find_stream_info(pCtx->fmt_ctx, NULL) < 0 ) {
-		fprintf(stderr, "Could not find stream information\n");
+		LOGE("Could not find stream information");
 		goto err_exit;
 	}
 
@@ -138,13 +138,13 @@ struct mediainput *mediainput_avcodec_openstream(const char *pzURI) {
 
 	pCtx->frame = av_frame_alloc();
 	if( pCtx->frame == NULL ) {
-		fprintf(stderr, "Could not allocate frame\n");
+		LOGE("Could not allocate frame");
 		goto err_exit;
 	}
 
 	pCtx->pkt = av_packet_alloc();
 	if( pCtx->pkt == NULL ) {
-		fprintf(stderr, "Could not allocate packet\n");
+		LOGE("Could not allocate packet");
 		goto err_exit;
 	}
 
