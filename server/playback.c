@@ -9,7 +9,10 @@
 #include "mediainput_avcodec.h"
 #include "mediaresampler.h"
 #include "mediaoutput_alsa.h"
+#include "mediainput_alsa.h"
 #include "shared/config.h"
+
+#include "playback.h"
 
 #define SAMPLERATE    CFG_OUTPUT_SAMPLERATE
 #define BITSPERSAMPLE CFG_OUTPUT_BITSPERSAMPLE
@@ -17,12 +20,43 @@
 typedef struct playback {
 	pthread_t thread_hdl;
 
+	ePlaybackInput currentInput;
+
 	struct mediainput     *pMediaInput;
 	struct mediaresampler *pMediaResampler;
 	struct mediaoutput    *pMediaOutput;
 } playback_t;
 
+static void switchInputIfNeeded(playback_t *pCtx,ePlaybackInput newInput) {
+
+	if( newInput == pCtx->currentInput ) return;
+
+	// 1. Tear down the current input
+	if( pCtx->currentInput == ePlaybackInput_AVCodec ) {
+		if( pCtx->pMediaInput != NULL ) {
+			mediainput_avcodec_close(pCtx->pMediaInput);
+			pCtx->pMediaInput = NULL;
+		}
+	} else if( pCtx->currentInput == ePlaybackInput_ALSA ) {
+		if( pCtx->pMediaInput != NULL ) {
+			mediainput_alsa_close(pCtx->pMediaInput);
+			pCtx->pMediaInput = NULL;
+		}
+	}
+
+	// 2. Start up the new input
+	if( newInput == ePlaybackInput_ALSA ) {
+		pCtx->pMediaInput = mediainput_alsa_openstream();
+	}
+
+	pCtx->currentInput = newInput;
+
+//	ASSERT(0,"Implement me");
+}
+
 static void playstream(playback_t *pCtx,char *pzURI) {
+
+//	switchInputIfNeeded(pCtx,ePlaybackInput_AVCodec);
 
 	if( pCtx->pMediaInput != NULL ) {
 		mediainput_avcodec_close(pCtx->pMediaInput);
@@ -37,8 +71,8 @@ static void playstream(playback_t *pCtx,char *pzURI) {
 	if( pCtx->pMediaOutput != NULL ) {
 		mediaoutput_alsa_flush(pCtx->pMediaOutput);
 	} else {
-		pCtx->pMediaOutput = mediaoutput_alsa_open();
-		mediaoutput_alsa_setplaybackvolume(50);
+//		pCtx->pMediaOutput = mediaoutput_alsa_open();
+//		mediaoutput_alsa_setplaybackvolume(50);
 	}
 
 	pCtx->pMediaInput = mediainput_avcodec_openstream(pzURI);
@@ -62,6 +96,9 @@ static void *playback_thread(void *pArg) {
 	int bIsPlaying = 0;
 	int bIsRunning = 1;
 
+	pCtx->pMediaOutput = mediaoutput_alsa_open();
+	//mediaoutput_alsa_setplaybackvolume(50);
+
 	while(bIsRunning) {
 		while( IPCEvent_Poll(&ev) == 0 ) {
 
@@ -84,12 +121,20 @@ static void *playback_thread(void *pArg) {
 			case eEventType_Volume_Set:
 				mediaoutput_alsa_setplaybackvolume(ev.volume_set.level);
 				break;
+			case eEventType_Switch_Input:
+				LOGE("Got switch_input");
+				if(      ev.switch_input.input == 0 ) switchInputIfNeeded(pCtx,ePlaybackInput_AVCodec);
+				else if( ev.switch_input.input == 1 ) switchInputIfNeeded(pCtx,ePlaybackInput_ALSA);
+				else {
+					ASSERT(0,"Inhandled input in event. %i",ev.switch_input.input);
+				}
+				break;
 			default:
 				fprintf(stderr,"Got unhandled IPC event of type 0x%x\n",ev.type);
 			}
 		}
 
-		if( bIsPlaying ) {
+		if( bIsPlaying && (pCtx->currentInput == ePlaybackInput_AVCodec) ) {
 			mediaframe_t *pFrame = NULL;
 			mediaframe_t *pResampledFrame = NULL;
 
@@ -103,6 +148,15 @@ static void *playback_thread(void *pArg) {
 				mediaoutput_alsa_buffer(pCtx->pMediaOutput,pResampledFrame);
 				mediaframe_free(pResampledFrame);
 			}
+		} else if( bIsPlaying && (pCtx->currentInput == ePlaybackInput_ALSA) ) {
+			mediaframe_t *pFrame = NULL;
+			mediaframe_t *pResampledFrame = NULL;
+
+			pFrame = mediainput_alsa_getnextframe(pCtx->pMediaInput);
+			pResampledFrame = mediaresampler_process(pCtx->pMediaResampler,pFrame);
+			mediaframe_free(pFrame);
+			mediaoutput_alsa_buffer(pCtx->pMediaOutput,pResampledFrame);
+			mediaframe_free(pResampledFrame);
 		} else {
 			usleep(100*1000);
 		}
@@ -137,7 +191,7 @@ void             playback_deinit(struct playback *pCtx) {
 int              playback_set_volume(struct playback *pCtx,uint8_t level) {
 	IPCEvent_t ev;
 
-	printf("PB: Should set volume to %u\n",level);
+	LOGD("PB: Should set volume to %u\n",level);
 
 	ev.type = eEventType_Volume_Set;
 	ev.volume_set.level = level;
@@ -149,7 +203,7 @@ int              playback_set_volume(struct playback *pCtx,uint8_t level) {
 int              playback_play_stream(struct playback *pCtx,char *pzURI) {
 	IPCEvent_t ev;
 
-	printf("PB: Should play stream \"%s\"\n",pzURI);
+	LOGD("PB: Should play stream \"%s\"\n",pzURI);
 
 	ev.type = eEventType_Playstream;
 	strncpy(ev.playstream.pzURI,pzURI,1024);
@@ -171,6 +225,23 @@ int              playback_quit(struct playback *pCtx) {
 	IPCEvent_t ev;
 
 	ev.type = eEventType_Quit;
+	IPCEvent_Post(&ev);
+
+	return 0;
+}
+
+int              playback_switch_input(struct playback *pCtx,ePlaybackInput input) {
+	IPCEvent_t ev;
+
+	ev.type = eEventType_Switch_Input;
+	switch(input) {
+	case ePlaybackInput_AVCodec: ev.switch_input.input = 0; break;
+	case ePlaybackInput_ALSA:    ev.switch_input.input = 1; break;
+	default:
+		LOGE("Invalid input in switch. %i",input);
+		return -1;
+	}
+
 	IPCEvent_Post(&ev);
 
 	return 0;

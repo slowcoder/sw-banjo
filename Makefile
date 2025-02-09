@@ -25,6 +25,7 @@ SERVER_OBJS := \
 	server/mediainput_avcodec.o \
 	server/mediaresampler.o \
 	server/mediaoutput_alsa.o \
+	server/mediainput_alsa.o \
 
 CLIENT_OBJS := \
 	client/main.o \

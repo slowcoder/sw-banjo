@@ -6,7 +6,7 @@
 
 #include "mediaoutput_alsa.h"
 
-#define DEFAULT_DEVICE CFG_ALSA_PCMDEVICE
+#define DEFAULT_DEVICE CFG_OUTPUT_ALSA_PCMDEVICE
 
 typedef struct mediaoutput {
   snd_pcm_t *pcm;
@@ -185,9 +185,8 @@ void                mediaoutput_alsa_setplaybackvolume(uint8_t volume) {
 	long min, max;
 	snd_mixer_t *handle;
 	snd_mixer_selem_id_t *sid;
-	const char *card = CFG_ALSA_MIXERDEVICE;
-//	const char *selem_name = "Master";
-	const char *selem_name = CFG_ALSA_MIXERELEMENT;
+	const char *card = CFG_OUTPUT_ALSA_MIXERDEVICE;
+	const char *selem_name = CFG_OUTPUT_ALSA_MIXERELEMENT;
 
 //	snd_mixer_open(&handle, 0);
 	if( (err = snd_mixer_open(&handle, 0)) < 0 ) {

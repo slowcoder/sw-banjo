@@ -10,6 +10,7 @@ typedef enum {
 	eNPktType_PlayStream,
 	eNPktType_Stop,
 	eNPktType_PlayFile,
+	eNPktType_PlayUSB,
 	eNPktType_Quit,
 } eNPktType;
 

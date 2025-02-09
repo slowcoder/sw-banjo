@@ -8,6 +8,7 @@ typedef enum {
   eEventType_Playstream    = 0x20,
   eEventType_Playback_Stop = 0x30,
   eEventType_Quit          = 0x40,
+  eEventType_Switch_Input  = 0x50,
 } eEventType;
 
 typedef struct {
@@ -20,6 +21,9 @@ typedef struct {
     struct {
       char pzURI[2048];
     } playstream;
+    struct {
+      int input; // 0=AVCodec, 1=ALSA Input
+    } switch_input;
   };
 } IPCEvent_t;
 

@@ -8,6 +8,7 @@
 #include "shared/protocol.h"
 #include "tcp_server.h"
 #include "playback.h"
+#include "mediainput_alsa.h"
 
 #define RECV_TIMEOUT 1000
 
@@ -139,6 +140,7 @@ static void handle_client(int s,struct playback *pPBCtx) {
 			break;
 		case eNPktType_PlayStream:
 			printf("Should play stream \"%s\"\n",pPkt->playstream.pzURI);
+			playback_switch_input(pPBCtx,ePlaybackInput_AVCodec);
 			playback_play_stream(pPBCtx,pPkt->playstream.pzURI);
 			break;
 		case eNPktType_Stop:
@@ -150,10 +152,14 @@ static void handle_client(int s,struct playback *pPBCtx) {
 			playback_quit(pPBCtx);
 			break;
 		case eNPktType_PlayFile:
+			playback_switch_input(pPBCtx,ePlaybackInput_AVCodec);
 			handle_playfile(pPBCtx,pPkt);
 			break;
+		case eNPktType_PlayUSB:
+			playback_switch_input(pPBCtx,ePlaybackInput_ALSA);
+			break;
 		default:
-			printf("Unhandled pkt of type %i\n",pPkt->hdr.type);
+			LOGW("Unhandled pkt of type %i",pPkt->hdr.type);
 		}
 		if( pPkt != NULL ) {
 			memset(pPkt,0,sizeof(pPkt->hdr));
@@ -168,6 +174,25 @@ int main(void) {
 	struct playback *pPBCtx = NULL;
 	err_code r;
 	int done = 0;
+
+#if 0 // ALSA input testcode
+	struct mediainput *pIn;
+
+	pIn = mediainput_alsa_openstream();
+	if( pIn == NULL ) return 0;
+
+	mediaframe_t      *pF = NULL;
+
+	while( pF == NULL ) {
+		pF = mediainput_alsa_getnextframe(pIn);
+		usleep(500*1000);
+	}
+	LOGI("Got %u samples",pF->nb_samples);
+	mediaframe_free(pF);
+
+	mediainput_alsa_close(pIn);
+	return 0;
+#endif
 
 	r = tcp_server_init();
 	if( r != ERROR_OK ) {

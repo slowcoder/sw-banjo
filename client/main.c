@@ -97,6 +97,16 @@ static void play_file(char *pzFilename) {
 	fclose(in);
 }
 
+static void play_usb(void) {
+	npkt_t pkt;
+
+	pkt.hdr.type = eNPktType_PlayUSB;
+	pkt.hdr.len  = 0;
+
+	tcp_send(&pkt,sizeof(pkt.hdr));
+}
+
+
 int main(int argc,char **argv) {
 
 	if( argc < 2 ) {
@@ -132,6 +142,8 @@ int main(int argc,char **argv) {
 		quit();
 	} else if( strcmp(argv[1],"volume") == 0 ) {
 		volume_set(atoi(argv[2]));
+	} else if( strcmp(argv[1],"playusb") == 0 ) {
+		play_usb();
 	}
 
 	return 0;
