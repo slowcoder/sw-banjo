@@ -50,8 +50,6 @@ static void switchInputIfNeeded(playback_t *pCtx,ePlaybackInput newInput) {
 	}
 
 	pCtx->currentInput = newInput;
-
-//	ASSERT(0,"Implement me");
 }
 
 static void playstream(playback_t *pCtx,char *pzURI) {
@@ -98,6 +96,10 @@ static void *playback_thread(void *pArg) {
 
 	pCtx->pMediaOutput = mediaoutput_alsa_open();
 	//mediaoutput_alsa_setplaybackvolume(50);
+	pCtx->pMediaResampler = mediaresampler_open();
+
+	// Default to AVCodec
+	switchInputIfNeeded(pCtx,ePlaybackInput_AVCodec);
 
 	while(bIsRunning) {
 		while( IPCEvent_Poll(&ev) == 0 ) {
@@ -122,12 +124,12 @@ static void *playback_thread(void *pArg) {
 				mediaoutput_alsa_setplaybackvolume(ev.volume_set.level);
 				break;
 			case eEventType_Switch_Input:
-				LOGE("Got switch_input");
 				if(      ev.switch_input.input == 0 ) switchInputIfNeeded(pCtx,ePlaybackInput_AVCodec);
 				else if( ev.switch_input.input == 1 ) switchInputIfNeeded(pCtx,ePlaybackInput_ALSA);
 				else {
 					ASSERT(0,"Inhandled input in event. %i",ev.switch_input.input);
 				}
+				bIsPlaying = 1;
 				break;
 			default:
 				fprintf(stderr,"Got unhandled IPC event of type 0x%x\n",ev.type);

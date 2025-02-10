@@ -174,10 +174,10 @@ mediaframe_t      *mediainput_alsa_getnextframe(struct mediainput *pCtx) {
 	pFrame->channels = 2;
 	pFrame->rate = CFG_INPUT_ALSA_SAMPLERATE;
 	pFrame->is_planar = 0;
-	pFrame->fmt = eMediasamplefmt_S32;
+	pFrame->fmt = eMediasamplefmt_S16;
 
 	// We're trying for 1/10th of a second of data
-	pFrame->data[0] = malloc((CFG_INPUT_ALSA_SAMPLERATE * 4 * 2) / 10);
+	pFrame->data[0] = malloc((CFG_INPUT_ALSA_SAMPLERATE * 2 * 2) / 10);
 
 	snd_pcm_sframes_t sf;
 	sf = snd_pcm_readi(pCtx->handle,pFrame->data[0],CFG_INPUT_ALSA_SAMPLERATE/10);
