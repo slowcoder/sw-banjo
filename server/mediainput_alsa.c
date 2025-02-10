@@ -32,7 +32,7 @@ static int open_input(mediainput_t *pCtx) {
 
 	err = snd_pcm_open(&pCtx->handle, CFG_INPUT_ALSA_PCMDEVICE, SND_PCM_STREAM_CAPTURE, 0);
 	if( err < 0 ) {
-		LOGE("audio open error: %s", snd_strerror(err));
+		LOGE("audio open error: %s (%s)", snd_strerror(err),CFG_INPUT_ALSA_PCMDEVICE);
 		return -1;
 	}
 
@@ -74,7 +74,13 @@ static int set_params(mediainput_t *pCtx) {
 	}
 
 	snd_pcm_format_t alsabits;
-	alsabits = SND_PCM_FORMAT_S16_LE;
+	switch(CFG_INPUT_ALSA_BITSPERSAMPLE) {
+	case 32: alsabits = SND_PCM_FORMAT_S32_LE; break;
+	case 16: alsabits = SND_PCM_FORMAT_S16_LE; break;
+	default:
+		ASSERT(0,"Unsupported bit-depth %i",CFG_INPUT_ALSA_BITSPERSAMPLE);
+	}
+	
 
 	// Test the format (bits)
 	if( (err = snd_pcm_hw_params_test_format(pCtx->handle,pCtx->hw_params,alsabits)) < 0 ) {
@@ -118,7 +124,7 @@ static int set_params(mediainput_t *pCtx) {
 		goto err_exit;
 	}
 
-	LOG("ALSA Input opened at %u/%u",16,CFG_INPUT_ALSA_SAMPLERATE);
+	LOG("ALSA Input opened at %u/%u",CFG_INPUT_ALSA_BITSPERSAMPLE,CFG_INPUT_ALSA_SAMPLERATE);
 
 	return 0;
 
@@ -137,7 +143,7 @@ static void dump_status(struct mediainput *pCtx) {
 	}
 
 	LOGE("Status(R/W):");
-	snd_pcm_status_dump(status, pCtx->log);
+	snd_pcm_status_dump(status, NULL);
 }
 
 struct mediainput *mediainput_alsa_openstream(void) {
@@ -174,10 +180,14 @@ mediaframe_t      *mediainput_alsa_getnextframe(struct mediainput *pCtx) {
 	pFrame->channels = 2;
 	pFrame->rate = CFG_INPUT_ALSA_SAMPLERATE;
 	pFrame->is_planar = 0;
+#if CFG_INPUT_ALSA_BITSPERSAMPLE == 32
+	pFrame->fmt = eMediasamplefmt_S32;
+#elif CFG_INPUT_ALSA_BITSPERSAMPLE == 16
 	pFrame->fmt = eMediasamplefmt_S16;
+#endif
 
 	// We're trying for 1/10th of a second of data
-	pFrame->data[0] = malloc((CFG_INPUT_ALSA_SAMPLERATE * 2 * 2) / 10);
+	pFrame->data[0] = malloc((CFG_INPUT_ALSA_SAMPLERATE * 4 * 2) / 10);
 
 	snd_pcm_sframes_t sf;
 	sf = snd_pcm_readi(pCtx->handle,pFrame->data[0],CFG_INPUT_ALSA_SAMPLERATE/10);
