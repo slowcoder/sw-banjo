@@ -1,9 +1,12 @@
 CROSS_COMPILE ?= 
-CC := $(CROSS_COMPILE)gcc
+CC  := $(CROSS_COMPILE)gcc
+CXX := $(CROSS_COMPILE)g++
 
 PKGCONFIG ?= pkg-config
 
-CFLAGS := -g -Wall -I.
+CFLAGS := -g -Wall -Ishared/include/
+CLIENT_CFLAGS := -Iclient/include/
+SERVER_CFLAGS := -Iserver/include/
 LDFLAGS := -g `$(PKGCONFIG) --libs alsa` -lsoxr
 
 CFLAGS  += `$(PKGCONFIG) --cflags libavformat`
@@ -17,45 +20,69 @@ LDFLAGS += `$(PKGCONFIG) --libs   libswresample`
 
 SERVER_OBJS := \
 	server/main.o \
-	server/tcp_server.o \
-	server/ipc.o \
-	server/log.o \
+	server/config.o \
 	server/playback.o \
-	server/media_frame.o \
-	server/mediainput_avcodec.o \
+	server/mediaframe.o \
 	server/mediaresampler.o \
-	server/mediaoutput_alsa.o \
-	server/mediainput_alsa.o \
+	server/audioinput_alsa.o \
+	server/audioinput_ffmpeg.o \
+	server/audioinput_sp.o \
+	server/audioinput_ffrf.o \
+	server/audiooutput_alsa.o \
 
 CLIENT_OBJS := \
 	client/main.o \
-	client/tcp_client.o \
+	client/ffrf.o \
+	client/uriplayer.o \
 
-#LIBBANJO_OBJS := \
-#	libbanjo/libbanjo.o \
-#	libbanjo/tcp.o
+SHARED_OBJS := \
+	shared/log.o \
+	shared/util.o \
+	shared/bdp/bdp.o \
+	shared/tcp.o \
 
-ALL_OBJS := $(SERVER_OBJS) $(CLIENT_OBJS) $(LIBBANJO_OBJS)
+ALL_OBJS := $(SERVER_OBJS) $(CLIENT_OBJS) $(SHARED_OBJS)
 
 ALL_DEPS := $(patsubst %.o,%.d,$(ALL_OBJS))
 
-all: banjo-server banjo-client
+all: banjo3-server banjo3-client
 
 clean:
-	rm -f banjo-server banjo-client $(ALL_OBJS) $(ALL_DEPS)
+	@echo "Cleaning"
+	@rm -f banjo3-server banjo3-client $(ALL_OBJS) $(ALL_DEPS)
 
-banjo-server: $(SERVER_OBJS) $(LIBBANJO_OBJS)
+banjo3-server: $(SERVER_OBJS) $(SHARED_OBJS)
 	@echo "LD $@"
-	@$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+	@$(CXX) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
-banjo-client: $(CLIENT_OBJS) $(LIBBANJO_OBJS)
+banjo3-client: $(CLIENT_OBJS) $(SHARED_OBJS)
 	@echo "LD $@"
-	@$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+	@$(CXX) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+
+server/%.o:server/%.c
+	@$(CC) -MM -MF $(subst .o,.d,$@) -MP -MT "$@ $(subst .o,.d,$@)" $(CFLAGS) $(SERVER_CFLAGS) $<
+	@echo "CC  $<"
+	@$(CC) $(CFLAGS) $(SERVER_CFLAGS) -c -o $@ $<
 
 %.o:%.c
 	@$(CC) -MM -MF $(subst .o,.d,$@) -MP -MT "$@ $(subst .o,.d,$@)" $(CFLAGS) $<
-	@echo "CC $<"
+	@echo "CC  $<"
 	@$(CC) $(CFLAGS) -c -o $@ $<
+
+server/%.o:server/%.cpp
+	@$(CXX) -MM -MF $(subst .o,.d,$@) -MP -MT "$@ $(subst .o,.d,$@)" $(CFLAGS) $(SERVER_CFLAGS) $<
+	@echo "CXX $<"
+	@$(CXX) $(CFLAGS) $(SERVER_CFLAGS) -c -o $@ $<
+
+client/%.o:client/%.cpp
+	@$(CXX) -MM -MF $(subst .o,.d,$@) -MP -MT "$@ $(subst .o,.d,$@)" $(CFLAGS) $(CLIENT_CFLAGS) $<
+	@echo "CXX $<"
+	@$(CXX) $(CFLAGS) $(CLIENT_CFLAGS) -c -o $@ $<
+
+%.o:%.cpp
+	@$(CXX) -MM -MF $(subst .o,.d,$@) -MP -MT "$@ $(subst .o,.d,$@)" $(CFLAGS) $<
+	@echo "CXX $<"
+	@$(CXX) $(CFLAGS) -c -o $@ $<
 
 ifneq ("$(MAKECMDGOALS)","clean")
 -include $(ALL_DEPS)

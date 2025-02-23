@@ -3,3 +3,5 @@ Configure ALSA devices and parameters in shared/config.h
 
 --==[ Cross-compilation example ]==--
 CROSS_COMPILE=~/src/starkis/buildroot/output/host/bin/arm-buildroot-linux-gnueabihf- PKGCONFIG=~/src/starkis/buildroot/output/host/bin/pkg-config make
+
+ffmpeg -i 04* -ar 96000 -ac 2  -f alsa hw:0,0
