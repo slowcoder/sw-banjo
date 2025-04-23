@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <thread>
+#include <getopt.h>
 
 #include "shared/log.h"
 #include "shared/bdp/bdp.h"
@@ -43,11 +44,12 @@ static void uriplayer_stop(void) {
 }
 
 int main(int argc,char **argv) {
+	char *pzServername = NULL;
 
 	pBDP = BDP::getInstance(0);
 
 	if( argc < 2 ) {
-		fprintf(stderr,"Usage: %s cmd [arg]\n",argv[0]);
+		fprintf(stderr,"Usage: %s [-s server] cmd [arg]\n",argv[0]);
 		fprintf(stderr," Available commands:\n");
 		fprintf(stderr,"   playuri [uri to stream]\n");
 		fprintf(stderr,"   playfile FILENAME\n");
@@ -55,7 +57,14 @@ int main(int argc,char **argv) {
 		return 0;
 	}
 
-	if( strcmp(argv[1],"playuri") == 0 ) {
+	int opt;
+	while( (opt = getopt(argc,argv, "s:")) != -1 ) {
+		if( opt == 's' ) {
+			pzServername = strdup(optarg);
+		}
+	}
+
+	if( strcmp(argv[optind],"playuri") == 0 ) {
 		if( argc > 2 ) {
 			uriplayer_play(argv[2]);
 		} else {
@@ -63,14 +72,23 @@ int main(int argc,char **argv) {
 			//play_stream("http://http-live.sr.se/p3-mp3-128");
 			uriplayer_play((char*)"http://http-live.sr.se/p4malmo-aac-192");
 		}
-	} else if( strcmp(argv[1],"playfile") == 0 ) {
+	} else if( strcmp(argv[optind],"playfile") == 0 ) {
 		if( argc > 2 ) {
 			TCP *pTCP;
 
-			pTCP = connectToFirstServicing(BDP::FFRF);
-			ffrf_play_file(pTCP,argv[2]);
+			if( pzServername == NULL ) { // Play on the first device that responds and has the FFRF service
+				pTCP = connectToFirstServicing(BDP::FFRF);
+			} else {
+				pTCP = new TCP();
+				if( pTCP->connect(pzServername,8183) != 0 ) { // 8183 is the default FFRF port
+					fprintf(stderr,"Couldn't connect to server \"%s\"\n",pzServername);
+					exit(-1);
+				}
+			}
+			ffrf_play_file(pTCP,argv[optind+1]);
 			pTCP->close();
 			delete pTCP;
+			if( pzServername != NULL ) free(pzServername);
 		} else {
 
 		}

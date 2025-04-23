@@ -98,7 +98,7 @@ int  AudiooutputALSA::open(int8_t bits,uint32_t rate) {
 
 	// Test the format (bits)
 	if( (err = snd_pcm_hw_params_test_format(pCtx->pcm,pCtx->hw_params,alsabits)) < 0 ) {
-		LOGE("Device doesn't support selected bit-depth");
+		LOGE("Device doesn't support selected bit-depth (%i)",bits);
 		goto err_exit;
 	}
 
